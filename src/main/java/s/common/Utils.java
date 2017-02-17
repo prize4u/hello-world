@@ -9,4 +9,8 @@ public class Utils {
 		System.out.println("sample back");
 		System.out.println("new line");
 	}
+	
+	public void newMethod() {
+		System.out.println("new method");
+	}
 }
