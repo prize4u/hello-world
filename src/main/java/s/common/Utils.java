@@ -6,6 +6,6 @@ public class Utils {
 	}
 	
 	public void print() {
-		System.out.println("print");
+		System.out.println("print new");
 	}
 }
