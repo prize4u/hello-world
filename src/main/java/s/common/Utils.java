@@ -7,5 +7,6 @@ public class Utils {
 	
 	public void print() {
 		System.out.println("sample back");
+		System.out.println("new line");
 	}
 }
