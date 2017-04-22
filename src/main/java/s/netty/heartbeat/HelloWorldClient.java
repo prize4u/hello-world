@@ -1,56 +1,69 @@
 package s.netty.heartbeat;
 
 import io.netty.bootstrap.Bootstrap;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.ChannelPipeline;
-import io.netty.channel.EventLoopGroup;
+import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.string.StringDecoder;
 import io.netty.handler.codec.string.StringEncoder;
 
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
-
 public class HelloWorldClient {
-    
-    static final String HOST = System.getProperty("host", "127.0.0.1");
-    static final int PORT = Integer.parseInt(System.getProperty("port", "8080"));
-    static final int SIZE = Integer.parseInt(System.getProperty("size", "256"));
 
-    public static void main(String[] args) throws Exception {
-        initChannel();
-    }
-    
-    public static void initChannel() throws InterruptedException{
+    public void connect(int port, String host) throws Exception {
+        ChannelFuture future = null;
         // Configure the client.
         EventLoopGroup group = new NioEventLoopGroup();
+        Bootstrap b = new Bootstrap().group(group).channel(NioSocketChannel.class).option(ChannelOption.TCP_NODELAY, true).handler(new ChannelInitializer<SocketChannel>() {
+            @Override
+            public void initChannel(SocketChannel ch) throws Exception {
+                ChannelPipeline p = ch.pipeline();
+                p.addLast("decoder", new StringDecoder());
+                p.addLast("encoder", new StringEncoder());
+//                        p.addLast("ping", new IdleStateHandler(0, 4, 0, TimeUnit.SECONDS));
+//                        p.addLast(new BaseClientHandler());
+            }
+        });
+
         try {
-            Bootstrap b = new Bootstrap();
-            b.group(group)
-             .channel(NioSocketChannel.class)
-             .option(ChannelOption.TCP_NODELAY, true)
-             .handler(new ChannelInitializer<SocketChannel>() {
-                 @Override
-                 public void initChannel(SocketChannel ch) throws Exception {
-                     ChannelPipeline p = ch.pipeline();
-                     p.addLast("decoder", new StringDecoder());
-                     p.addLast("encoder", new StringEncoder());
-                     p.addLast(new HelloWorldClientHandler());
-                 }
-             });
-//            SocketAddress socketAddress = InetSocketAddress.createUnresolved(address.getHost(), address.getPort());
-            SocketAddress socketAddress =  new InetSocketAddress(HOST, PORT);
-            ChannelFuture future = b.connect(socketAddress).sync();
-            future.channel().writeAndFlush("hello world");
-            future.channel().closeFuture().sync();
+            future = b.connect(host, port).sync();
+            Channel channel = future.channel();
+            channel.writeAndFlush("Hello Netty Server ,I am a common client");
+            Thread.sleep(5000);// sleep 5 s
+            ChannelFuture closeFuture = channel.close();
+            closeFuture.addListener(new ChannelFutureListener() {
+                public void operationComplete(ChannelFuture channelFuture) throws Exception {
+                    System.out.println(channelFuture);
+                }
+            });
+//            future.channel().closeFuture().sync();
         } finally {
-            group.shutdownGracefully();
+            // group.shutdownGracefully();
+            if (null != future) {
+                if (future.channel() != null && future.channel().isOpen()) {
+                    future.channel().close();
+                }
+            }
+            System.out.println("准备重连");
+            connect(port, host);
+            System.out.println("重连成功");
         }
-    
+    }
+
+    /**
+     * @param args
+     * @throws Exception
+     */
+    public static void main(String[] args) throws Exception {
+        int port = 8080;
+        if (args != null && args.length > 0) {
+            try {
+                port = Integer.valueOf(args[0]);
+            } catch (NumberFormatException e) {
+                // 采用默认值
+            }
+        }
+        new HelloWorldClient().connect(port, "192.168.0.104");
     }
 
 }
